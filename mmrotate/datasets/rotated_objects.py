@@ -113,4 +113,4 @@ class RotObjectsDataset(DOTADataset):
         img = Image.open(img_path).convert('RGB')
 
         # Return the loaded image
-       
+        return img
