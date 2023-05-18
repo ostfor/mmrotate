@@ -1,7 +1,6 @@
-# Copyright (c) OpenMMLab. All rights reserved.
 import os
-
 import pandas as pd
+import yaml
 from PIL import Image
 
 from .builder import ROTATED_DATASETS
@@ -33,56 +32,85 @@ class RotObjectsDataset(DOTADataset):
     ├── images/
     │   ├── image0.jpg
     │   └── image1.jpg
-    └── annotations.csv
+    └── annotations.yaml
 
     Annotation Format
     -----------------
-    annotations.csv:
-    image_name,x,y,width,height,angle
-    image0.jpg,10,20,100,200,30
-    image1.jpg,50,100,150,250,45
+    annotations.yaml:
+    - filename: image0.jpg
+      ann:
+        bboxes:
+        - [x1, y1, w1, h1, a1]
+        - [x2, y2, w2, h2, a2]
+        labels: [0, 1]
 
     As a Table
     ----------
-    |  image_name |  x  |   y  | width | height | angle |
-    |-------------|-----|------|-------|--------|-------|
-    | image0.jpg  |  10 |  20  |  100  |  200   |   30  |
-    | image1.jpg  |  50 |  100 |  150  |  250   |   45  |
+    |  image_name |  x1 |  y1 | w1  |  h1 |  a1 |  x2 |  y2 | w2  |  h2 |  a2 | labels |
+    |-------------|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|--------|
+    | image0.jpg  | x1  | y1  | w1  | h1  | a1  | x2  | y2  | w2  | h2  | a2  | [0, 1] |
+    | image1.jpg  | ... | ... | ... | ... | ... | ... | ... | ... | ... | ... |  ...   |
     """
-    CLASSES = ('object', )
-    PALETTE = [
-        (0, 255, 0),
-    ]
+
+    CLASSES = ('object',)
+    PALETTE = [(0, 255, 0)]
+
     def load_annotations(self, ann_file):
-        # Load the annotations from the CSV file
-        annotations = pd.read_csv(ann_file)
+        """
+        Load annotations from the YAML file.
+
+        Parameters
+        ----------
+        ann_file : str
+            Path to the annotation file.
+
+        Returns
+        -------
+        list
+            List of dictionaries containing the image information and annotations.
+
+        """
+        # Load the annotations from the YAML file
+        with open(ann_file, 'r') as f:
+            annotations = yaml.safe_load(f)
 
         data_infos = []
-        for _, row in annotations.iterrows():
+        for ann_info in annotations:
             data_info = {}
-            img_name = row['image_name']
+            img_name = ann_info['filename']
             data_info['filename'] = img_name
 
-            # Retrieve the bounding box coordinates and angle
-            x, y, w, h, a  = (
-                row['x'], row['y'], row['width'], row['height'], row['angle']
-            )
+            # Retrieve the bounding box coordinates and angles
+            bboxes = ann_info['ann'].get('bboxes', [])
+            labels = ann_info['ann'].get('labels', [])
 
             # Store the bounding box information in the annotation dictionary
             data_info['ann'] = {}
-            data_info['ann']['bboxes'] = [[x, y, w, h, a]]
-            data_info['ann']['labels'] = [0]  # Assuming only one class 'plane'
+            data_info['ann']['bboxes'] = bboxes
+            data_info['ann']['labels'] = labels
 
             data_infos.append(data_info)
 
         return data_infos
 
     def load_img(self, img_info):
+        """
+        Load image from file.
+
+        Parameters
+        ----------
+        img_info : dict
+            Image information.
+
+        Returns
+        -------
+        PIL.Image
+            Loaded image.
+
+        """
         # Load the image using PIL
         img_path = os.path.join(self.img_prefix, img_info['filename'])
         img = Image.open(img_path).convert('RGB')
 
         # Return the loaded image
-        return img
-
-
+       
